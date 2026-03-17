@@ -140,7 +140,7 @@
       <div class="topbar">
         <div class="chips">
           <div class="chip">分数：<b id="score">0</b></div>
-          <div class="chip">生命：<b id="lives">3</b></div>
+          <div class="chip">时间：<b id="time">30</b>s</div>
           <div class="chip">最高分：<b id="best">0</b></div>
         </div>
       </div>
@@ -150,8 +150,8 @@
         <div class="overlay" id="overlay">
           <div class="message">
             <h2>生日小游戏来啦 🎁</h2>
-            <p>左右移动 Annie，接住 <b>🍰🎁⭐</b>，躲开 <b>⏰</b></p>
-            <p>手机可点按钮，也可左右滑动</p>
+            <p>左右移动 Annie，接住 <b>🍰🎁⭐</b> 来拿分和加时！</p>
+            <p>每吃到一个奖励 <b>+5 秒</b>，30 秒倒计时结束即结算</p>
             <div class="controls" style="margin-top:12px"><button id="startBtn">开始游戏</button></div>
           </div>
         </div>
@@ -174,7 +174,7 @@ const field = document.getElementById('field');
 const player = document.getElementById('player');
 const overlay = document.getElementById('overlay');
 const scoreEl = document.getElementById('score');
-const livesEl = document.getElementById('lives');
+const timeEl = document.getElementById('time');
 const bestEl = document.getElementById('best');
 const startBtn = document.getElementById('startBtn');
 const restartBtn = document.getElementById('restartBtn');
@@ -183,13 +183,14 @@ const leftBtn = document.getElementById('leftBtn');
 const rightBtn = document.getElementById('rightBtn');
 const confetti = document.getElementById('confetti');
 
-let score = 0, lives = 3, best = Number(localStorage.getItem('annie-bday-best') || 0);
-let playerX = 0.5, running = false, spawnTimer = null, animTimer = null;
+let score = 0, timeLeft = 30, best = Number(localStorage.getItem('annie-bday-best') || 0);
+let playerX = 0.5, running = false, spawnTimer = null, animTimer = null, timerInterval = null;
 let musicOn = true;
 let velocity = 0;
 let inertiaFrame = null;
 let audioCtx = null;
 let musicTimer = null;
+let celebrated = false;
 bestEl.textContent = best;
 
 function makeConfetti() {
@@ -288,7 +289,7 @@ function stopMusic(){
   if(musicTimer){ clearTimeout(musicTimer); musicTimer = null; }
 }
 
-function updateHUD(){ scoreEl.textContent = score; livesEl.textContent = lives; bestEl.textContent = best; }
+function updateHUD(){ scoreEl.textContent = score; timeEl.textContent = Math.max(0, Math.ceil(timeLeft)); bestEl.textContent = best; }
 function setPlayer(){ const max = field.clientWidth - player.clientWidth; player.style.left = (playerX * max) + 'px'; }
 function movePlayer(delta){ playerX = Math.min(1, Math.max(0, playerX + delta)); setPlayer(); }
 function kickPlayer(delta){
@@ -311,7 +312,7 @@ function runInertia(){
 }
 function resetGame(){
   document.querySelectorAll('.item').forEach(e=>e.remove());
-  score = 0; lives = 3; playerX = 0.5; velocity = 0;
+  score = 0; timeLeft = 30; playerX = 0.5; velocity = 0; celebrated = false;
   if (inertiaFrame) { cancelAnimationFrame(inertiaFrame); inertiaFrame = null; }
   updateHUD(); setPlayer();
 }
@@ -321,12 +322,12 @@ function spawnItem(){
   const item = document.createElement('div');
   item.className = 'item';
   const bag = [
-    {emoji:'🍰', good:true, points:2},
-    {emoji:'🎁', good:true, points:3},
-    {emoji:'⭐', good:true, points:1},
-    {emoji:'⏰', good:false, points:0}
+    {emoji:'🍰', good:true, points:2, bonus:5},
+    {emoji:'🎁', good:true, points:3, bonus:5},
+    {emoji:'⭐', good:true, points:1, bonus:5},
+    {emoji:'🎈', good:true, points:2, bonus:5}
   ];
-  const pick = Math.random() < 0.22 ? bag[3] : bag[Math.floor(Math.random()*3)];
+  const pick = bag[Math.floor(Math.random()*bag.length)];
   item.textContent = pick.emoji;
   item.dataset.good = pick.good;
   item.dataset.points = pick.points;
@@ -344,16 +345,20 @@ function spawnItem(){
     if(!(ir.right < pr.left || ir.left > pr.right || ir.bottom < pr.top || ir.top > pr.bottom)){
       if(item.dataset.good === 'true'){
         score += Number(item.dataset.points);
+        timeLeft += Number(item.dataset.bonus || 5);
         if(score > best){ best = score; localStorage.setItem('annie-bday-best', best); }
-      } else {
-        lives -= 1;
+        if(score >= 30 && !celebrated){
+          celebrated = true;
+          burstFireworks(80);
+          setTimeout(() => burstFireworks(60), 500);
+          setTimeout(() => burstFireworks(50), 1100);
+        }
       }
       updateHUD();
       item.remove();
-      if(lives <= 0) endGame(false);
       return;
     }
-    if(y > field.clientHeight - 12){ item.remove(); if(item.dataset.good === 'true'){} }
+    if(y > field.clientHeight - 12){ item.remove(); }
     else requestAnimationFrame(fall);
   }
   requestAnimationFrame(fall);
@@ -367,13 +372,18 @@ function startGame(){
   setPlayer();
   burstFireworks(18);
   if(musicOn) playBirthdayLoop();
-  spawnTimer = setInterval(spawnItem, 700);
+  spawnTimer = setInterval(spawnItem, 620);
+  timerInterval = setInterval(() => {
+    timeLeft -= 1;
+    updateHUD();
+    if(timeLeft <= 0) endGame(score >= 30);
+  }, 1000);
 }
-function stopTimers(){ if(spawnTimer) clearInterval(spawnTimer); if(animTimer) cancelAnimationFrame(animTimer); }
+function stopTimers(){ if(spawnTimer) clearInterval(spawnTimer); if(timerInterval) clearInterval(timerInterval); if(animTimer) cancelAnimationFrame(animTimer); }
 function endGame(win){
   running = false; stopTimers();
-  burstFireworks(win ? 30 : 14);
-  overlay.innerHTML = `<div class="message"><h2>${win ? '生日快乐，Annie！🎉' : '礼物先送到这里啦 🎂'}</h2><p>本局得分：<b>${score}</b></p><p>${win ? '愿你今天被快乐和惊喜包围。' : '再玩一局，把更多蛋糕和礼物接住吧～'}</p><div class="controls" style="margin-top:12px"><button id="againBtn">再玩一局</button></div></div>`;
+  burstFireworks(win ? 90 : 20);
+  overlay.innerHTML = `<div class="message"><h2>${win ? '大成功！生日快乐，Annie！🎆' : '时间到啦，Annie！🎂'}</h2><p>本局得分：<b>${score}</b></p><p>${win ? '你已经超过 30 分，触发了超级生日烟花庆祝！' : '再来一局，冲过 30 分解锁超级烟花吧～'}</p><div class="controls" style="margin-top:12px"><button id="againBtn">再玩一局</button></div></div>`;
   overlay.style.display = 'grid';
   document.getElementById('againBtn').onclick = startGame;
 }
