@@ -303,6 +303,7 @@ function spawnItem(){
         if(score >= 30 && !celebrated){ celebrated=true; burstFireworks(90); setTimeout(()=>burstFireworks(70),400); setTimeout(()=>burstFireworks(55),1000); }
       } else {
         combo = 0;
+        score = 0;
         const fr = field.getBoundingClientRect();
         bombExplosion(ir.left - fr.left + ir.width/2, ir.top - fr.top + ir.height/2);
       }
