@@ -42,7 +42,7 @@
     .meta b { display:block; font-size:20px; }
     .meta small { color:var(--muted); font-size:12px; }
     .game-shell {
-      width:min(98vw, 760px); background:var(--panel); border:1px solid rgba(255,255,255,.12); border-radius:22px;
+      width:min(82vw, 620px); background:var(--panel); border:1px solid rgba(255,255,255,.12); border-radius:22px;
       padding:10px; box-shadow:0 14px 45px rgba(0,0,0,.25); backdrop-filter: blur(10px);
     }
     .topbar { display:flex; justify-content:space-between; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:8px; }
@@ -50,7 +50,7 @@
     .chip { background:rgba(255,255,255,.08); border-radius:999px; padding:7px 10px; font-size:13px; color:var(--muted); }
     .chip b { color:var(--text); }
     .field {
-      position:relative; width:100%; min-height:68vh; aspect-ratio:16/13.8; overflow:hidden; border-radius:20px;
+      position:relative; width:100%; min-height:54vh; aspect-ratio:16/13.8; overflow:hidden; border-radius:20px;
       border:1px solid rgba(255,255,255,.1); touch-action:pan-y;
       background:
         radial-gradient(circle at top, rgba(255,255,255,.08), transparent 30%),
@@ -105,6 +105,7 @@
           <div class="chip">分数：<b id="score">0</b></div>
           <div class="chip">时间：<b id="time">30</b>s</div>
           <div class="chip">连击：<b id="comboNum">0</b></div>
+          <div class="chip">速度：<b id="speedLabel">中</b></div>
           <div class="chip">最高分：<b id="best">0</b></div>
         </div>
       </div>
@@ -124,6 +125,7 @@
       <div class="controls">
         <button id="restartBtn">重新开始</button>
         <button id="musicBtn" class="secondary">音乐：开</button>
+        <button id="speedBtn" class="secondary">速度：中</button>
       </div>
       <div class="touch">
         <button id="lane1">左</button>
@@ -142,14 +144,17 @@ const timeEl = document.getElementById('time');
 const comboNum = document.getElementById('comboNum');
 const comboText = document.getElementById('comboText');
 const bestEl = document.getElementById('best');
+const speedLabel = document.getElementById('speedLabel');
 const startBtn = document.getElementById('startBtn');
 const restartBtn = document.getElementById('restartBtn');
 const musicBtn = document.getElementById('musicBtn');
+const speedBtn = document.getElementById('speedBtn');
 const confetti = document.getElementById('confetti');
 const laneBtns = [document.getElementById('lane1'), document.getElementById('lane2'), document.getElementById('lane3')];
 
 let score = 0, timeLeft = 30, best = Number(localStorage.getItem('annie-bday-best') || 0);
 let running = false, spawnTimer = null, timerInterval = null;
+let fallSpeedMode = 1; // 0慢 1中 2快
 let musicOn = true, audioCtx = null, musicTimer = null;
 let combo = 0, celebrated = false;
 let playerX = 0.5, velocity = 0, inertiaFrame = null;
@@ -257,7 +262,7 @@ function playBirthdayLoop(){
 }
 function stopMusic(){ if(musicTimer){ clearTimeout(musicTimer); musicTimer=null; } }
 
-function updateHUD(){ scoreEl.textContent=score; timeEl.textContent=Math.max(0,Math.ceil(timeLeft)); comboNum.textContent=combo; bestEl.textContent=best; }
+function updateHUD(){ scoreEl.textContent=score; timeEl.textContent=Math.max(0,Math.ceil(timeLeft)); comboNum.textContent=combo; bestEl.textContent=best; speedLabel.textContent = ['慢','中','快'][fallSpeedMode]; if(speedBtn) speedBtn.textContent = `速度：${['慢','中','快'][fallSpeedMode]}`; }
 function showCombo(){ if(combo < 2) return; comboText.textContent=`COMBO x${combo}`; comboText.style.opacity=1; clearTimeout(showCombo.t); showCombo.t=setTimeout(()=> comboText.style.opacity=0, 420); }
 function resetGame(){ document.querySelectorAll('.item').forEach(e=>e.remove()); score=0; timeLeft=30; combo=0; celebrated=false; playerX=0.5; velocity=0; if(inertiaFrame){ cancelAnimationFrame(inertiaFrame); inertiaFrame=null; } updateHUD(); comboText.style.opacity=0; setPlayer(); }
 
@@ -286,7 +291,7 @@ function spawnItem(){
   el.dataset.good=String(pick.good); el.dataset.points=String(pick.points); el.dataset.bonus=String(pick.bonus);
   el.style.left = Math.random() * (field.clientWidth - 60) + 'px'; el.style.top='56px';
   field.appendChild(el);
-  let y=56; const speed=5.2 + Math.random()*2 + Math.min(4, score*0.03);
+  let y=56; const speedBase=[3.8,5.2,6.8][fallSpeedMode]; const speed=speedBase + Math.random()*2 + Math.min(4, score*0.03);
   function fall(){
     if(!running){ el.remove(); return; }
     y += speed; el.style.top = y + 'px';
@@ -329,6 +334,7 @@ function endGame(win){
 
 startBtn.onclick=startGame; restartBtn.onclick=startGame;
 musicBtn.onclick=()=>{ musicOn=!musicOn; musicBtn.textContent=`音乐：${musicOn?'开':'关'}`; if(musicOn) playBirthdayLoop(); else stopMusic(); };
+speedBtn.onclick=()=>{ fallSpeedMode = (fallSpeedMode + 1) % 3; updateHUD(); };
 laneBtns[0].onclick=()=>kickPlayer(-0.052); laneBtns[1].onclick=()=>{ velocity = 0; }; laneBtns[2].onclick=()=>kickPlayer(0.052);
 window.addEventListener('keydown', e=>{ if(e.key==='ArrowLeft') kickPlayer(-0.040); if(e.key==='ArrowRight') kickPlayer(0.040); });
 let touchStartX=null;
