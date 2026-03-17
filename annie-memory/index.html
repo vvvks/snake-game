@@ -54,15 +54,15 @@
 
     .celebration-cover{
       position:absolute; inset:0; display:grid; place-items:center; z-index:9; opacity:0; pointer-events:none;
-      transition:opacity .45s ease;
+      transition:none;
       background:
-        linear-gradient(rgba(15,23,42,.18), rgba(15,23,42,.18)),
+        linear-gradient(rgba(15,23,42,.10), rgba(15,23,42,.10)),
         url('../annie-bday/annie.jpg') center 30% / cover no-repeat;
     }
     .celebration-cover.show{ opacity:1; }
     .celebration-text{
       text-align:center; padding:18px 22px; border-radius:24px;
-      background:rgba(15,23,42,.48); border:1px solid rgba(255,255,255,.18); backdrop-filter: blur(10px);
+      background:rgba(15,23,42,.42); border:1px solid rgba(255,255,255,.18); backdrop-filter: blur(8px);
       box-shadow:0 12px 30px rgba(0,0,0,.22);
     }
     .celebration-text h2{
@@ -249,7 +249,7 @@ function flipCard(id, el){
 function finishGame(){
   running = false;
   curtain.classList.add('hidden');
-  setTimeout(()=> celebrationCover.classList.add('show'), 260);
+  celebrationCover.classList.add('show');
   burstFireworks(120);
   setTimeout(()=>burstFireworks(90), 480);
   setTimeout(()=>burstFireworks(70), 1020);
