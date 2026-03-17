@@ -21,14 +21,48 @@
       min-height: 100vh;
       display: grid;
       place-items: center;
-      background: radial-gradient(circle at top, #1e293b, var(--bg));
+      background:
+        radial-gradient(circle at top, rgba(251,191,36,.16), transparent 28%),
+        radial-gradient(circle at bottom right, rgba(236,72,153,.14), transparent 30%),
+        radial-gradient(circle at left, rgba(34,197,94,.12), transparent 26%),
+        radial-gradient(circle at top, #1e293b, var(--bg));
       color: var(--text);
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      overflow-x: hidden;
+    }
+    body::before {
+      content: "Happy Birthday, Annie!";
+      position: fixed;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      font-size: clamp(34px, 8vw, 92px);
+      font-weight: 900;
+      letter-spacing: 1px;
+      color: rgba(255,255,255,0.06);
+      text-align: center;
+      pointer-events: none;
+      z-index: 0;
+      text-shadow: 0 0 30px rgba(255,255,255,.04);
+      padding: 24px;
     }
     .wrap {
       width: min(92vw, 760px);
       display: grid;
       gap: 16px;
+      position: relative;
+      z-index: 1;
+    }
+    .birthday-banner {
+      text-align: center;
+      font-size: clamp(20px, 4vw, 34px);
+      font-weight: 900;
+      background: linear-gradient(90deg, #f59e0b, #f472b6, #60a5fa, #34d399);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+      text-shadow: 0 0 18px rgba(255,255,255,.06);
+      margin-bottom: 4px;
     }
     .panel {
       background: rgba(17, 24, 39, 0.92);
@@ -113,6 +147,7 @@
 </head>
 <body>
   <div class="wrap">
+    <div class="birthday-banner">🎉 Happy Birthday, Annie! 🎂</div>
     <div class="panel">
       <div class="topbar">
         <div class="title">🐍 贪吃蛇</div>
@@ -130,6 +165,7 @@
         <button id="startBtn">开始 / 重新开始</button>
         <button id="pauseBtn" class="secondary">暂停</button>
         <button id="speedBtn" class="secondary">加速模式：关</button>
+        <button id="musicBtn" class="secondary">音乐：开</button>
       </div>
       <div class="hint">
         电脑：方向键 / WASD 控制，空格暂停。<br>
@@ -155,10 +191,12 @@
     const startBtn = document.getElementById('startBtn');
     const pauseBtn = document.getElementById('pauseBtn');
     const speedBtn = document.getElementById('speedBtn');
+    const musicBtn = document.getElementById('musicBtn');
 
     const size = 20;
     const tile = canvas.width / size;
     let snake, dir, nextDir, food, score, best, loop, running, paused, turbo;
+    let audioCtx, musicOn = true, melodyTimer = null;
 
     function loadBest() {
       best = Number(localStorage.getItem('snake-best') || 0);
@@ -307,6 +345,52 @@
       if (fill) ctx.fill();
     }
 
+    function ensureAudio() {
+      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+    }
+
+    function playTone(freq, start, duration, type = 'triangle', gainValue = 0.03) {
+      if (!musicOn) return;
+      ensureAudio();
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = type;
+      osc.frequency.value = freq;
+      gain.gain.setValueAtTime(0.0001, start);
+      gain.gain.exponentialRampToValueAtTime(gainValue, start + 0.01);
+      gain.gain.exponentialRampToValueAtTime(0.0001, start + duration);
+      osc.connect(gain).connect(audioCtx.destination);
+      osc.start(start);
+      osc.stop(start + duration + 0.02);
+    }
+
+    function playBirthdayLoop() {
+      if (!musicOn) return;
+      ensureAudio();
+      const n = {C4:261.63,D4:293.66,E4:329.63,F4:349.23,G4:392,A4:440,Bb4:466.16,C5:523.25};
+      const seq = [
+        ['G4',0.30],['G4',0.15],['A4',0.45],['G4',0.45],['C5',0.45],['Bb4',0.9],
+        ['G4',0.30],['G4',0.15],['A4',0.45],['G4',0.45],['D4',0.45],['C5',0.9],
+        ['G4',0.30],['G4',0.15],['G4',0.45],['E4',0.45],['C5',0.45],['Bb4',0.45],['A4',0.9],
+        ['F4',0.30],['F4',0.15],['E4',0.45],['C5',0.45],['D4',0.45],['C5',1.0]
+      ];
+      let t = audioCtx.currentTime + 0.05;
+      seq.forEach(([note,dur], i) => {
+        playTone(n[note], t, dur, 'triangle', 0.022);
+        playTone(n[note] / 2, t, dur, 'sine', 0.012);
+        t += dur;
+      });
+      melodyTimer = setTimeout(playBirthdayLoop, (t - audioCtx.currentTime) * 1000 + 300);
+    }
+
+    function stopBirthdayMusic() {
+      if (melodyTimer) {
+        clearTimeout(melodyTimer);
+        melodyTimer = null;
+      }
+    }
+
     document.addEventListener('keydown', (e) => {
       const key = e.key.toLowerCase();
       if (["arrowup","arrowdown","arrowleft","arrowright"," ","w","a","s","d"].includes(key)) e.preventDefault();
@@ -328,13 +412,25 @@
       draw();
     }
 
-    startBtn.addEventListener('click', init);
+    startBtn.addEventListener('click', () => {
+      init();
+      if (musicOn) playBirthdayLoop();
+    });
     pauseBtn.addEventListener('click', togglePause);
     speedBtn.addEventListener('click', () => {
       turbo = !turbo;
       speedBtn.textContent = `加速模式：${turbo ? '开' : '关'}`;
       if (running) restartLoop();
       updateScore();
+    });
+    musicBtn.addEventListener('click', () => {
+      musicOn = !musicOn;
+      musicBtn.textContent = `音乐：${musicOn ? '开' : '关'}`;
+      if (musicOn) {
+        playBirthdayLoop();
+      } else {
+        stopBirthdayMusic();
+      }
     });
 
     loadBest();
