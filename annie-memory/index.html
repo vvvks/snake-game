@@ -35,11 +35,11 @@
     .chips{display:flex;gap:8px;flex-wrap:wrap}.chip{background:rgba(255,255,255,.08);border-radius:999px;padding:8px 12px;font-size:13px;color:var(--muted)}.chip b{color:var(--text)}
     .play-zone{display:grid;gap:12px}
     .memory-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
-    .celebration-cover{position:absolute;inset:0;display:grid;place-items:center;z-index:9;opacity:0;pointer-events:none;background:linear-gradient(rgba(15,23,42,.10), rgba(15,23,42,.10)),url('../annie-bday/annie.jpg') center 30% / cover no-repeat;border-radius:22px;}
+    .celebration-cover{position:absolute;inset:0;display:block;z-index:9;opacity:0;pointer-events:none;background:linear-gradient(rgba(15,23,42,.06), rgba(15,23,42,.06)),url('../annie-bday/annie.jpg') center 30% / cover no-repeat;border-radius:22px;}
     .celebration-cover.show{opacity:1;}
-    .celebration-text{text-align:center;padding:18px 22px;border-radius:24px;background:rgba(15,23,42,.42);border:1px solid rgba(255,255,255,.18);backdrop-filter:blur(8px);box-shadow:0 12px 30px rgba(0,0,0,.22);}
-    .celebration-text h2{margin:0;font-size:clamp(28px, 8vw, 54px);line-height:1.02;font-weight:900;background:linear-gradient(90deg,#fbbf24,#f472b6,#60a5fa,#34d399,#fbbf24);-webkit-background-clip:text;background-clip:text;color:transparent;text-shadow:0 0 18px rgba(255,255,255,.08);}
-    .celebration-text p{margin:10px 0 0;color:#fff;font-size:clamp(14px,3.4vw,18px);font-weight:700;}
+    .celebration-text{position:absolute;left:12px;right:12px;bottom:12px;text-align:center;padding:12px 16px;border-radius:18px;background:rgba(15,23,42,.34);border:1px solid rgba(255,255,255,.14);backdrop-filter:blur(6px);box-shadow:0 10px 24px rgba(0,0,0,.18);}
+    .celebration-text h2{margin:0;font-size:clamp(20px, 6vw, 34px);line-height:1.02;font-weight:900;background:linear-gradient(90deg,#fbbf24,#f472b6,#60a5fa,#34d399,#fbbf24);-webkit-background-clip:text;background-clip:text;color:transparent;text-shadow:0 0 18px rgba(255,255,255,.08);}
+    .celebration-text p{margin:6px 0 0;color:#fff;font-size:clamp(12px,3vw,15px);font-weight:700;}
     .card{aspect-ratio:1/1;border:none;border-radius:18px;position:relative;cursor:pointer;perspective:1000px;background:none;padding:0}
     .card-inner{position:absolute;inset:0;transition:transform .42s ease;transform-style:preserve-3d}
     .card.flipped .card-inner,.card.matched .card-inner,.card.photo .card-inner{transform:rotateY(180deg)}
@@ -220,7 +220,7 @@ function finishGame(){
   setTimeout(()=>burstFireworks(90), 480);
   setTimeout(()=>burstFireworks(70), 1020);
   setTimeout(()=>{
-    overlay.innerHTML = `<div class="message"><h2>💝 Happy Birthday, Annie! 🎂</h2><p>你把所有配对都完成了，Annie 的生日卡片墙也完整出现啦。</p><p>愿 Annie 今天被快乐、惊喜和很多很多爱包围 ✨</p><p>本次步数：<b>${moves}</b></p><div class="controls" style="margin-top:12px"><button class="action" id="againBtn">再玩一次</button></div></div>`;
+    overlay.innerHTML = `<div class="message"><h2>💝 Happy Birthday, Annie! 🎂</h2><p>你把所有配对都完成了，Annie 的生日图已经完整解锁。</p><p>本次步数：<b>${moves}</b></p><div class="controls" style="margin-top:12px"><button class="action" id="againBtn">再玩一次</button></div></div>`;
     overlay.style.display='grid';
     document.getElementById('againBtn').onclick = startGame;
   }, 1400);
