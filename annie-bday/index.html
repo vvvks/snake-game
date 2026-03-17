@@ -312,16 +312,16 @@ function endGame(win){
 startBtn.onclick = startGame;
 restartBtn.onclick = startGame;
 musicBtn.onclick = () => { musicOn = !musicOn; musicBtn.textContent = `音乐：${musicOn ? '开' : '关'}`; if(musicOn) playBirthdayLoop(); else stopMusic(); };
-leftBtn.onclick = () => movePlayer(-0.08);
-rightBtn.onclick = () => movePlayer(0.08);
-window.addEventListener('keydown', e => { if(e.key==='ArrowLeft') movePlayer(-0.05); if(e.key==='ArrowRight') movePlayer(0.05); });
+leftBtn.onclick = () => movePlayer(-0.13);
+rightBtn.onclick = () => movePlayer(0.13);
+window.addEventListener('keydown', e => { if(e.key==='ArrowLeft') movePlayer(-0.09); if(e.key==='ArrowRight') movePlayer(0.09); });
 
 let touchStartX = null;
 field.addEventListener('touchstart', e => { touchStartX = e.touches[0].clientX; }, {passive:true});
 field.addEventListener('touchmove', e => {
   if(touchStartX == null) return;
   const dx = e.touches[0].clientX - touchStartX;
-  movePlayer(dx / field.clientWidth * 0.18);
+  movePlayer(dx / field.clientWidth * 0.28);
   touchStartX = e.touches[0].clientX;
 }, {passive:true});
 field.addEventListener('touchend', () => touchStartX = null, {passive:true});
