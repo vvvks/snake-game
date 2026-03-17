@@ -57,8 +57,6 @@
         linear-gradient(180deg, #1d4ed8 0%, #60a5fa 30%, #fef3c7 31%, #fde68a 100%);
     }
     .field::after { content:""; position:absolute; left:0; right:0; bottom:0; height:24%; background:linear-gradient(180deg,#86efac,#4ade80); z-index:0; }
-    .lane { position:absolute; top:0; bottom:0; width:2px; background:rgba(255,255,255,.12); z-index:1; }
-    .l1{left:33.333%}.l2{left:66.666%}
     .floating-title { position:absolute; top:14px; left:50%; transform:translateX(-50%); z-index:3; font-weight:900; text-align:center; font-size:clamp(18px,4vw,30px); color:rgba(255,255,255,.94); text-shadow:0 3px 14px rgba(0,0,0,.25); }
     .combo { position:absolute; top:50px; left:50%; transform:translateX(-50%); z-index:4; font-weight:900; font-size:18px; color:#fff; text-shadow:0 0 16px rgba(244,114,182,.75); opacity:0; transition:.2s; }
     .player {
@@ -66,7 +64,7 @@
       border-radius:50%; background:url('./annie.jpg') center 28% / cover no-repeat;
       border:5px solid rgba(255,255,255,.98);
       box-shadow:0 12px 28px rgba(0,0,0,.30),0 0 0 6px rgba(255,255,255,.18),0 0 20px rgba(244,114,182,.35);
-      transition:left .12s cubic-bezier(.2,.8,.2,1), transform .12s cubic-bezier(.2,.8,.2,1);
+      transition:left .05s linear, transform .12s cubic-bezier(.2,.8,.2,1);
     }
     .player::after {
       content:"Annie"; position:absolute; left:50%; transform:translateX(-50%); bottom:-30px; white-space:nowrap;
@@ -93,12 +91,12 @@
   <div class="wrap">
     <div class="hero">
       <h1>🎉 Happy Birthday, Annie! 🎂</h1>
-      <p>生日冲刺版：三轨道接礼物，连击越高越爽 ✨</p>
+      <p>生日冲刺版：自由移动接礼物，连击越高越爽 ✨</p>
     </div>
 
     <div class="annie-card">
       <div class="avatar-wrap"><img class="avatar" src="./annie.jpg" alt="Annie"></div>
-      <div class="meta"><b>Annie</b><small>30 秒冲刺 · 连击加分 · 大富翁接物风格</small></div>
+      <div class="meta"><b>Annie</b><small>30 秒冲刺 · 自由移动 · 连击追分</small></div>
     </div>
 
     <div class="game-shell">
@@ -111,14 +109,13 @@
         </div>
       </div>
       <div class="field" id="field">
-        <div class="lane l1"></div><div class="lane l2"></div>
-        <div class="floating-title">Birthday Rush for Annie! 🎁</div>
+        <div class="floating-title">Birthday Rush for Annie! ✨</div>
         <div class="combo" id="comboText">COMBO x2</div>
         <div class="player" id="player"></div>
         <div class="overlay" id="overlay">
           <div class="message">
             <h2>生日冲刺来啦 🎮</h2>
-            <p>三条轨道里接住 <b>🍰🎁⭐🎈</b>，躲开 <b>💣</b></p>
+            <p>自由移动接住 <b>🍰🎁⭐🎈</b>，躲开 <b>💣</b></p>
             <p>连续接中会涨连击，<b>🎁 彩虹礼盒 +8分</b>，炸弹命中会有爆炸特效并打断节奏</p>
             <div class="controls" style="margin-top:12px"><button id="startBtn">开始冲刺</button></div>
           </div>
@@ -130,10 +127,10 @@
       </div>
       <div class="touch">
         <button id="lane1">左</button>
-        <button id="lane2">中</button>
+        <button id="lane2">停</button>
         <button id="lane3">右</button>
       </div>
-      <div class="tip">点左/中/右切轨道，或在游戏区域左右滑动切轨。这个版本更像真正小游戏。</div>
+      <div class="tip">左右自由移动接礼物；手机上滑动即可灵活走位。</div>
     </div>
   </div>
 <script>
@@ -154,12 +151,14 @@ const laneBtns = [document.getElementById('lane1'), document.getElementById('lan
 let score = 0, timeLeft = 30, best = Number(localStorage.getItem('annie-bday-best') || 0);
 let running = false, spawnTimer = null, timerInterval = null;
 let musicOn = true, audioCtx = null, musicTimer = null;
-let lane = 1, combo = 0, celebrated = false;
-const lanePos = ['16.66%','50%','83.33%'];
+let combo = 0, celebrated = false;
+let playerX = 0.5, velocity = 0, inertiaFrame = null;
 bestEl.textContent = best;
 
-function setLane(i){ lane = Math.max(0, Math.min(2, i)); player.style.left = lanePos[lane]; player.classList.remove('pulse'); void player.offsetWidth; player.classList.add('pulse'); }
-setLane(1);
+function setPlayer(){ const max = field.clientWidth - player.clientWidth; player.style.left = (playerX * max) + 'px'; }
+function movePlayer(delta){ playerX = Math.min(1, Math.max(0, playerX + delta)); setPlayer(); }
+function kickPlayer(delta){ velocity += delta; velocity = Math.max(-0.08, Math.min(0.08, velocity)); if(!inertiaFrame) runInertia(); }
+function runInertia(){ inertiaFrame = requestAnimationFrame(() => { if(Math.abs(velocity) < 0.001){ velocity = 0; inertiaFrame = null; return; } movePlayer(velocity); if(playerX <= 0 || playerX >= 1) velocity *= 0.45; velocity *= 0.9; runInertia(); }); }
 
 function makeConfetti(){
   const colors=['#f472b6','#fbbf24','#60a5fa','#34d399','#fff'];
@@ -198,36 +197,46 @@ function burstFireworks(count=24){
   }
 }
 function bombExplosion(x, y){
-  const colors=['#fb7185','#f59e0b','#fde047','#ffffff'];
-  for(let i=0;i<26;i++){
+  const colors=['#fb7185','#f59e0b','#fde047','#ffffff','#ef4444'];
+  for(let i=0;i<52;i++){
     const p=document.createElement('span');
     p.style.position='absolute';
     p.style.left=x+'px';
     p.style.top=y+'px';
-    p.style.width=(8+Math.random()*10)+'px';
-    p.style.height=(8+Math.random()*10)+'px';
-    p.style.borderRadius='50%';
+    p.style.width=(10+Math.random()*16)+'px';
+    p.style.height=(10+Math.random()*16)+'px';
+    p.style.borderRadius=Math.random()>.4?'50%':'2px';
     p.style.background=colors[Math.floor(Math.random()*colors.length)];
     p.style.pointerEvents='none';
-    p.style.zIndex='7';
-    p.style.boxShadow=`0 0 12px ${p.style.background}`;
+    p.style.zIndex='9';
+    p.style.boxShadow=`0 0 12px ${p.style.background}, 0 0 24px ${p.style.background}`;
     field.appendChild(p);
-    const dx=(Math.random()*180-90), dy=(Math.random()*-140);
+    const dx=(Math.random()*260-130), dy=(Math.random()*-220);
     p.animate([
-      {transform:'translate(-50%,-50%) scale(0.2)',opacity:1},
-      {transform:`translate(${dx}px, ${dy}px) scale(1.15)`,opacity:1,offset:0.35},
-      {transform:`translate(${dx*1.35}px, ${dy+80}px) scale(0.5)`,opacity:0}
-    ],{duration:720+Math.random()*320,easing:'cubic-bezier(.2,.8,.2,1)'});
-    setTimeout(()=>p.remove(),1200);
+      {transform:'translate(-50%,-50%) scale(0.15)',opacity:1},
+      {transform:`translate(${dx}px, ${dy}px) scale(1.45)`,opacity:1,offset:0.25},
+      {transform:`translate(${dx*1.5}px, ${dy+150}px) scale(0.35)`,opacity:0}
+    ],{duration:980+Math.random()*420,easing:'cubic-bezier(.12,.88,.22,1)'});
+    setTimeout(()=>p.remove(),1500);
   }
+  const flash=document.createElement('div');
+  flash.style.position='absolute'; flash.style.left=(x-70)+'px'; flash.style.top=(y-70)+'px'; flash.style.width='140px'; flash.style.height='140px'; flash.style.borderRadius='50%';
+  flash.style.background='radial-gradient(circle, rgba(255,255,255,.95), rgba(251,113,133,.45), rgba(251,113,133,0))';
+  flash.style.pointerEvents='none'; flash.style.zIndex='8'; field.appendChild(flash);
+  flash.animate([{transform:'scale(.2)',opacity:1},{transform:'scale(1.8)',opacity:.9,offset:.35},{transform:'scale(2.4)',opacity:0}],{duration:520,easing:'ease-out'});
+  setTimeout(()=>flash.remove(),600);
+  player.animate([
+    { transform:'translateX(-50%) rotate(0deg) scale(1)' },
+    { transform:'translateX(-50%) rotate(-12deg) scale(.92)' },
+    { transform:'translateX(-50%) rotate(10deg) scale(1.06)' },
+    { transform:'translateX(-50%) rotate(-6deg) scale(.97)' },
+    { transform:'translateX(-50%) rotate(0deg) scale(1)' }
+  ],{duration:360,easing:'ease-out'});
   field.animate([
-    {transform:'translateX(0px)'},
-    {transform:'translateX(-8px)'},
-    {transform:'translateX(8px)'},
-    {transform:'translateX(-5px)'},
-    {transform:'translateX(0px)'}
-  ],{duration:280,easing:'ease-out'});
+    {transform:'translateX(0px)'},{transform:'translateX(-12px)'},{transform:'translateX(12px)'},{transform:'translateX(-8px)'},{transform:'translateX(0px)'}
+  ],{duration:360,easing:'ease-out'});
 }
+
 makeConfetti();
 setTimeout(()=>burstFireworks(26),450);
 
@@ -250,7 +259,7 @@ function stopMusic(){ if(musicTimer){ clearTimeout(musicTimer); musicTimer=null;
 
 function updateHUD(){ scoreEl.textContent=score; timeEl.textContent=Math.max(0,Math.ceil(timeLeft)); comboNum.textContent=combo; bestEl.textContent=best; }
 function showCombo(){ if(combo < 2) return; comboText.textContent=`COMBO x${combo}`; comboText.style.opacity=1; clearTimeout(showCombo.t); showCombo.t=setTimeout(()=> comboText.style.opacity=0, 420); }
-function resetGame(){ document.querySelectorAll('.item').forEach(e=>e.remove()); score=0; timeLeft=30; combo=0; celebrated=false; setLane(1); updateHUD(); comboText.style.opacity=0; }
+function resetGame(){ document.querySelectorAll('.item').forEach(e=>e.remove()); score=0; timeLeft=30; combo=0; celebrated=false; playerX=0.5; velocity=0; if(inertiaFrame){ cancelAnimationFrame(inertiaFrame); inertiaFrame=null; } updateHUD(); comboText.style.opacity=0; setPlayer(); }
 
 function spawnItem(){
   if(!running) return;
@@ -266,14 +275,13 @@ function spawnItem(){
   const el=document.createElement('div');
   el.className='item'; el.textContent=pick.emoji;
   el.dataset.good=String(pick.good); el.dataset.points=String(pick.points); el.dataset.bonus=String(pick.bonus);
-  const laneIndex=Math.floor(Math.random()*3); el.dataset.lane=String(laneIndex);
-  el.style.left=lanePos[laneIndex]; el.style.transform='translateX(-50%)'; el.style.top='56px';
+  el.style.left = Math.random() * (field.clientWidth - 60) + 'px'; el.style.top='56px';
   field.appendChild(el);
   let y=56; const speed=5.2 + Math.random()*2 + Math.min(4, score*0.03);
   function fall(){
     if(!running){ el.remove(); return; }
     y += speed; el.style.top = y + 'px';
-    const caught = y > field.clientHeight - 140 && y < field.clientHeight - 30 && laneIndex === lane;
+    const pr = player.getBoundingClientRect(); const ir = el.getBoundingClientRect(); const caught = !(ir.right < pr.left || ir.left > pr.right || ir.bottom < pr.top || ir.top > pr.bottom);
     if(caught){
       if(el.dataset.good === 'true'){
         combo += 1;
@@ -311,13 +319,14 @@ function endGame(win){
 
 startBtn.onclick=startGame; restartBtn.onclick=startGame;
 musicBtn.onclick=()=>{ musicOn=!musicOn; musicBtn.textContent=`音乐：${musicOn?'开':'关'}`; if(musicOn) playBirthdayLoop(); else stopMusic(); };
-laneBtns[0].onclick=()=>setLane(0); laneBtns[1].onclick=()=>setLane(1); laneBtns[2].onclick=()=>setLane(2);
-window.addEventListener('keydown', e=>{ if(e.key==='ArrowLeft') setLane(lane-1); if(e.key==='ArrowRight') setLane(lane+1); if(e.key==='1') setLane(0); if(e.key==='2') setLane(1); if(e.key==='3') setLane(2); });
+laneBtns[0].onclick=()=>kickPlayer(-0.045); laneBtns[1].onclick=()=>{ velocity = 0; }; laneBtns[2].onclick=()=>kickPlayer(0.045);
+window.addEventListener('keydown', e=>{ if(e.key==='ArrowLeft') kickPlayer(-0.03); if(e.key==='ArrowRight') kickPlayer(0.03); });
 let touchStartX=null;
 field.addEventListener('touchstart', e=>{ touchStartX=e.touches[0].clientX; }, {passive:true});
-field.addEventListener('touchmove', e=>{ if(touchStartX==null) return; const dx=e.touches[0].clientX-touchStartX; if(Math.abs(dx)>26){ setLane(lane + (dx>0?1:-1)); touchStartX=e.touches[0].clientX; } }, {passive:true});
+field.addEventListener('touchmove', e=>{ if(touchStartX==null) return; const dx=e.touches[0].clientX-touchStartX; movePlayer(dx / field.clientWidth * 0.42); kickPlayer(dx / field.clientWidth * 0.015); touchStartX=e.touches[0].clientX; }, {passive:true});
 field.addEventListener('touchend', ()=> touchStartX=null, {passive:true});
-updateHUD();
+window.addEventListener('resize', setPlayer);
+updateHUD(); setPlayer();
 </script>
 </body>
 </html>
