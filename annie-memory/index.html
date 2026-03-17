@@ -1,0 +1,342 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+  <title>Annie Birthday Memory Game 🎁</title>
+  <style>
+    :root {
+      --bg1:#1e1b4b; --bg2:#0f172a; --pink:#f472b6; --yellow:#fbbf24; --blue:#60a5fa; --green:#34d399;
+      --panel: rgba(15,23,42,.74); --text:#f8fafc; --muted:#cbd5e1;
+    }
+    * { box-sizing:border-box; -webkit-tap-highlight-color: transparent; }
+    body {
+      margin:0; min-height:100vh; overflow:hidden; color:var(--text);
+      font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+      background:
+        radial-gradient(circle at 20% 20%, rgba(244,114,182,.32), transparent 20%),
+        radial-gradient(circle at 80% 15%, rgba(96,165,250,.30), transparent 22%),
+        radial-gradient(circle at 50% 80%, rgba(52,211,153,.18), transparent 24%),
+        linear-gradient(160deg, var(--bg1), var(--bg2));
+    }
+    .confetti { position:fixed; inset:0; pointer-events:none; overflow:hidden; }
+    .confetti span { position:absolute; top:-30px; border-radius:3px; opacity:.88; animation: fall linear infinite; }
+    @keyframes fall { from { transform: translateY(-10vh) rotate(0deg);} to { transform: translateY(110vh) rotate(560deg);} }
+    .wrap { position:relative; z-index:1; min-height:100vh; display:flex; flex-direction:column; align-items:center; padding:10px 10px 16px; }
+    .hero { text-align:center; margin-bottom:8px; }
+    .hero h1 { margin:2px 0; font-size:clamp(24px, 7vw, 48px); line-height:1.03; }
+    .hero p { margin:4px 0 0; color:var(--muted); font-size:13px; }
+    .annie-card {
+      display:flex; align-items:center; gap:12px; width:min(96vw, 860px);
+      background:var(--panel); border:1px solid rgba(255,255,255,.12); border-radius:20px;
+      padding:10px 12px; box-shadow:0 14px 45px rgba(0,0,0,.25); backdrop-filter: blur(10px);
+      margin:6px 0 10px;
+    }
+    .avatar-wrap { position:relative; }
+    .avatar-wrap::before {
+      content:""; position:absolute; inset:-8px; border-radius:50%;
+      background: conic-gradient(from 0deg, var(--pink), var(--yellow), var(--blue), var(--green), var(--pink));
+      filter: blur(8px); opacity:.65;
+    }
+    .avatar { width:72px; height:72px; border-radius:50%; object-fit:cover; object-position:center 30%; border:4px solid rgba(255,255,255,.95); position:relative; }
+    .meta b { display:block; font-size:20px; }
+    .meta small { color:var(--muted); font-size:12px; }
+    .game-shell {
+      width:min(96vw, 920px); background:var(--panel); border:1px solid rgba(255,255,255,.12); border-radius:24px;
+      padding:12px; box-shadow:0 14px 45px rgba(0,0,0,.25); backdrop-filter: blur(10px);
+    }
+    .topbar { display:flex; justify-content:space-between; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:10px; }
+    .chips { display:flex; gap:8px; flex-wrap:wrap; }
+    .chip { background:rgba(255,255,255,.08); border-radius:999px; padding:8px 12px; font-size:13px; color:var(--muted); }
+    .chip b { color:var(--text); }
+    .board-wrap {
+      display:grid; grid-template-columns: 1.05fr .95fr; gap:14px;
+    }
+    .memory-side, .reveal-side {
+      background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.1); border-radius:22px; padding:12px;
+    }
+    .memory-grid {
+      display:grid; grid-template-columns:repeat(4, 1fr); gap:10px;
+    }
+    .card {
+      aspect-ratio:1/1; border:none; border-radius:18px; position:relative; cursor:pointer; perspective:1000px; background:none; padding:0;
+    }
+    .card-inner {
+      position:absolute; inset:0; transition:transform .45s ease; transform-style:preserve-3d;
+    }
+    .card.flipped .card-inner, .card.matched .card-inner { transform:rotateY(180deg); }
+    .card-face {
+      position:absolute; inset:0; border-radius:18px; display:grid; place-items:center; backface-visibility:hidden;
+      font-size:34px; font-weight:900;
+    }
+    .card-front {
+      background:linear-gradient(135deg, rgba(244,114,182,.95), rgba(251,191,36,.95));
+      box-shadow:0 10px 20px rgba(0,0,0,.18), inset 0 0 0 2px rgba(255,255,255,.18);
+      color:#fff;
+    }
+    .card-back {
+      transform:rotateY(180deg);
+      background:linear-gradient(180deg, rgba(255,255,255,.98), rgba(241,245,249,.98));
+      color:#111827;
+      box-shadow:0 10px 20px rgba(0,0,0,.12);
+    }
+    .card.matched .card-back { box-shadow:0 0 0 3px rgba(52,211,153,.7), 0 12px 22px rgba(0,0,0,.12); }
+    .reveal-box {
+      position:relative; width:100%; aspect-ratio: 4 / 5; border-radius:22px; overflow:hidden;
+      background:#0b1220; border:1px solid rgba(255,255,255,.12);
+    }
+    .reveal-box img {
+      width:100%; height:100%; object-fit:cover; object-position:center 30%; filter:saturate(1.08) contrast(1.05);
+    }
+    .tile-mask {
+      position:absolute; background:linear-gradient(135deg, rgba(15,23,42,.95), rgba(30,41,59,.96));
+      border:1px solid rgba(255,255,255,.06); transition:opacity .35s ease, transform .35s ease;
+    }
+    .tile-mask.hidden { opacity:0; transform:scale(.9); pointer-events:none; }
+    .reveal-caption {
+      margin-top:10px; text-align:center; color:var(--muted); font-size:14px; line-height:1.6;
+    }
+    .controls { display:flex; justify-content:center; gap:8px; flex-wrap:wrap; margin-top:12px; }
+    button.action { border:none; border-radius:14px; padding:12px 16px; font-weight:800; cursor:pointer; color:#111827; background:linear-gradient(90deg, #fbbf24, #f472b6); }
+    button.secondary { background:#334155; color:#e2e8f0; border:none; border-radius:14px; padding:12px 16px; font-weight:800; cursor:pointer; }
+    .tip { text-align:center; color:var(--muted); font-size:13px; line-height:1.6; margin-top:10px; }
+    .overlay { position:fixed; inset:0; display:grid; place-items:center; background:rgba(15,23,42,.28); padding:18px; z-index:10; }
+    .message { text-align:center; background:rgba(15,23,42,.84); border:1px solid rgba(255,255,255,.15); border-radius:22px; padding:22px 18px; box-shadow:0 10px 30px rgba(0,0,0,.2); max-width:92%; }
+    .message h2 { margin:0 0 8px; font-size:clamp(24px,6vw,38px); }
+    .message p { margin:6px 0; color:var(--muted); }
+    @media (max-width: 860px){ .board-wrap { grid-template-columns:1fr; } .reveal-side { order:-1; } }
+  </style>
+</head>
+<body>
+  <div class="confetti" id="confetti"></div>
+  <div class="wrap">
+    <div class="hero">
+      <h1>🎁 Annie's Birthday Memory 🎂</h1>
+      <p>翻牌配对成功后，会慢慢揭开 Annie 的生日图 ✨</p>
+    </div>
+
+    <div class="annie-card">
+      <div class="avatar-wrap"><img class="avatar" src="../annie-bday/annie.jpg" alt="Annie"></div>
+      <div class="meta"><b>Annie</b><small>这次是更温柔的礼物版：翻牌成功，一点点揭开属于 Annie 的生日画面。</small></div>
+    </div>
+
+    <div class="game-shell">
+      <div class="topbar">
+        <div class="chips">
+          <div class="chip">步数：<b id="moves">0</b></div>
+          <div class="chip">配对：<b id="pairs">0</b>/8</div>
+          <div class="chip">进度：<b id="progress">0</b>%</div>
+        </div>
+      </div>
+
+      <div class="board-wrap">
+        <div class="memory-side">
+          <div class="memory-grid" id="grid"></div>
+        </div>
+
+        <div class="reveal-side">
+          <div class="reveal-box" id="revealBox">
+            <img src="../annie-bday/annie.jpg" alt="Annie reveal" />
+          </div>
+          <div class="reveal-caption">每配对成功一组，就会揭开一块 Annie 的生日图。全部完成后，会触发祝福与烟花。</div>
+        </div>
+      </div>
+
+      <div class="controls">
+        <button class="action" id="restartBtn">重新开始</button>
+        <button class="secondary" id="musicBtn">音乐：开</button>
+      </div>
+      <div class="tip">规则很简单：翻开两张相同图案就算成功。这个版本更适合当生日礼物，不卷操作，只卷心意。</div>
+    </div>
+  </div>
+
+  <div class="overlay" id="overlay">
+    <div class="message">
+      <h2>生日翻牌礼物来啦 💝</h2>
+      <p>把 8 组图案全部配对成功，就能完整看到 Annie 的生日图，并触发庆祝烟花。</p>
+      <div class="controls" style="margin-top:12px"><button class="action" id="startBtn">开始翻牌</button></div>
+    </div>
+  </div>
+
+<script>
+const grid = document.getElementById('grid');
+const movesEl = document.getElementById('moves');
+const pairsEl = document.getElementById('pairs');
+const progressEl = document.getElementById('progress');
+const revealBox = document.getElementById('revealBox');
+const overlay = document.getElementById('overlay');
+const startBtn = document.getElementById('startBtn');
+const restartBtn = document.getElementById('restartBtn');
+const musicBtn = document.getElementById('musicBtn');
+const confetti = document.getElementById('confetti');
+
+let deck = [];
+let flipped = [];
+let matched = 0;
+let moves = 0;
+let locked = false;
+let running = false;
+let musicOn = true;
+let audioCtx = null;
+let musicTimer = null;
+
+const symbols = ['🎂','🎁','🎈','⭐','💖','🍰','🌙','🧁'];
+
+function makeConfetti(){
+  const colors=['#f472b6','#fbbf24','#60a5fa','#34d399','#fff'];
+  for(let i=0;i<80;i++){
+    const s=document.createElement('span');
+    s.style.left=Math.random()*100+'vw';
+    s.style.width=(8+Math.random()*8)+'px';
+    s.style.height=(14+Math.random()*12)+'px';
+    s.style.background=colors[i%colors.length];
+    s.style.animationDuration=(4.5+Math.random()*4.5)+'s';
+    s.style.animationDelay=(Math.random()*-8)+'s';
+    confetti.appendChild(s);
+  }
+}
+function burstFireworks(count=40){
+  const colors=['#f472b6','#fbbf24','#60a5fa','#34d399','#fff'];
+  for(let i=0;i<count;i++){
+    const dot=document.createElement('span');
+    dot.style.position='fixed';
+    dot.style.left=(10+Math.random()*80)+'vw';
+    dot.style.top=(8+Math.random()*62)+'vh';
+    dot.style.width='10px'; dot.style.height='10px'; dot.style.borderRadius='50%';
+    dot.style.background=colors[Math.floor(Math.random()*colors.length)];
+    dot.style.boxShadow=`0 0 12px ${dot.style.background}, 0 0 28px ${dot.style.background}`;
+    dot.style.pointerEvents='none'; dot.style.zIndex='12';
+    dot.animate([
+      {transform:'scale(.2)',opacity:0},
+      {transform:'scale(1.9)',opacity:1,offset:.16},
+      {transform:`translate(${(Math.random()*220-110)}px, ${(Math.random()*220-110)}px) scale(.8)`,opacity:0}
+    ],{duration:1400+Math.random()*800,easing:'ease-out'});
+    document.body.appendChild(dot);
+    setTimeout(()=>dot.remove(),2400);
+  }
+}
+
+function ensureAudio(){ if(!audioCtx) audioCtx = new (window.AudioContext||window.webkitAudioContext)(); if(audioCtx.state==='suspended') audioCtx.resume(); }
+function playNote(freq,start,duration,type='triangle',volume=0.02){ if(!musicOn) return; ensureAudio(); const osc=audioCtx.createOscillator(); const gain=audioCtx.createGain(); osc.type=type; osc.frequency.setValueAtTime(freq,start); gain.gain.setValueAtTime(0.0001,start); gain.gain.exponentialRampToValueAtTime(volume,start+0.02); gain.gain.exponentialRampToValueAtTime(0.0001,start+duration); osc.connect(gain).connect(audioCtx.destination); osc.start(start); osc.stop(start+duration+0.03); }
+function playBirthdayLoop(){
+  if(!musicOn) return; ensureAudio(); stopMusic();
+  const n={C4:261.63,D4:293.66,E4:329.63,F4:349.23,G4:392,A4:440,Bb4:466.16,C5:523.25};
+  const seq=[['G4',0.32],['G4',0.15],['A4',0.42],['G4',0.42],['C5',0.46],['Bb4',0.88],['G4',0.32],['G4',0.15],['A4',0.42],['G4',0.42],['D4',0.46],['C5',0.88]];
+  let t=audioCtx.currentTime+.06;
+  seq.forEach(([note,d])=>{ playNote(n[note],t,d,'triangle',0.022); playNote(n[note]/2,t,d,'sine',0.007); t+=d; });
+  musicTimer=setTimeout(playBirthdayLoop,(t-audioCtx.currentTime)*1000+250);
+}
+function stopMusic(){ if(musicTimer){ clearTimeout(musicTimer); musicTimer=null; } }
+
+function buildRevealMask(){
+  revealBox.querySelectorAll('.tile-mask').forEach(e=>e.remove());
+  const rows = 4, cols = 4;
+  for(let r=0;r<rows;r++){
+    for(let c=0;c<cols;c++){
+      const tile=document.createElement('div');
+      tile.className='tile-mask';
+      tile.dataset.index = String(r*cols+c);
+      tile.style.left = (c*25)+'%';
+      tile.style.top = (r*25)+'%';
+      tile.style.width = '25%';
+      tile.style.height = '25%';
+      revealBox.appendChild(tile);
+    }
+  }
+}
+
+function revealTiles(count){
+  const tiles=[...revealBox.querySelectorAll('.tile-mask:not(.hidden)')];
+  tiles.slice(0, count).forEach((t, i)=> setTimeout(()=> t.classList.add('hidden'), i*80));
+}
+
+function updateHUD(){
+  movesEl.textContent = moves;
+  pairsEl.textContent = matched;
+  progressEl.textContent = Math.round((matched / 8) * 100);
+}
+
+function shuffle(arr){ return [...arr].sort(()=> Math.random()-0.5); }
+
+function createDeck(){
+  deck = shuffle([...symbols, ...symbols]).map((symbol, index) => ({ id:index, symbol, matched:false }));
+}
+
+function renderGrid(){
+  grid.innerHTML='';
+  deck.forEach(card => {
+    const btn=document.createElement('button');
+    btn.className='card';
+    btn.dataset.id=String(card.id);
+    btn.innerHTML=`<div class="card-inner"><div class="card-face card-front">🎀</div><div class="card-face card-back">${card.symbol}</div></div>`;
+    btn.onclick=()=> flipCard(card.id, btn);
+    grid.appendChild(btn);
+  });
+}
+
+function flipCard(id, el){
+  if(!running || locked) return;
+  const card = deck.find(c=>c.id===id);
+  if(!card || card.matched) return;
+  if(flipped.find(f=>f.id===id)) return;
+
+  el.classList.add('flipped');
+  flipped.push({ id, el, symbol: card.symbol });
+
+  if(flipped.length===2){
+    moves += 1;
+    updateHUD();
+    const [a,b]=flipped;
+    if(a.symbol===b.symbol){
+      locked = true;
+      setTimeout(()=>{
+        a.el.classList.add('matched');
+        b.el.classList.add('matched');
+        deck.find(c=>c.id===a.id).matched = true;
+        deck.find(c=>c.id===b.id).matched = true;
+        flipped=[];
+        matched += 1;
+        revealTiles(2);
+        updateHUD();
+        locked = false;
+        if(matched===8) finishGame();
+      }, 420);
+    } else {
+      locked = true;
+      setTimeout(()=>{
+        a.el.classList.remove('flipped');
+        b.el.classList.remove('flipped');
+        flipped=[];
+        locked = false;
+      }, 700);
+    }
+  }
+}
+
+function finishGame(){
+  running = false;
+  burstFireworks(120);
+  setTimeout(()=>burstFireworks(90), 480);
+  setTimeout(()=>burstFireworks(70), 1020);
+  overlay.innerHTML = `<div class="message"><h2>💝 Happy Birthday, Annie! 🎂</h2><p>你把所有记忆碎片都拼出来啦。</p><p>愿 Annie 今天被快乐、惊喜和很多很多爱包围 ✨</p><p>本次步数：<b>${moves}</b></p><div class="controls" style="margin-top:12px"><button class="action" id="againBtn">再玩一次</button></div></div>`;
+  overlay.style.display='grid';
+  document.getElementById('againBtn').onclick = startGame;
+}
+
+function startGame(){
+  flipped=[]; matched=0; moves=0; locked=false; running=true;
+  createDeck(); renderGrid(); buildRevealMask(); updateHUD();
+  overlay.style.display='none';
+  if(musicOn) playBirthdayLoop();
+}
+
+startBtn.onclick = startGame;
+restartBtn.onclick = startGame;
+musicBtn.onclick = ()=>{ musicOn=!musicOn; musicBtn.textContent=`音乐：${musicOn?'开':'关'}`; if(musicOn) playBirthdayLoop(); else stopMusic(); };
+
+makeConfetti();
+buildRevealMask();
+updateHUD();
+</script>
+</body>
+</html>
