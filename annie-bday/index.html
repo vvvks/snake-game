@@ -98,7 +98,7 @@
 
     <div class="annie-card">
       <div class="avatar-wrap"><img class="avatar" src="./annie.jpg" alt="Annie"></div>
-      <div class="meta"><b>Annie</b><small>30 秒冲刺 · 连击加分 · 30 分解锁大烟花</small></div>
+      <div class="meta"><b>Annie</b><small>30 秒冲刺 · 连击加分 · 大富翁接物风格</small></div>
     </div>
 
     <div class="game-shell">
@@ -119,7 +119,7 @@
           <div class="message">
             <h2>生日冲刺来啦 🎮</h2>
             <p>三条轨道里接住 <b>🍰🎁⭐🎈</b>，躲开 <b>💣</b></p>
-            <p>连续接中会涨连击，<b>🎁 彩虹礼盒 +8分</b>，每个奖励 <b>+2 秒</b></p>
+            <p>连续接中会涨连击，<b>🎁 彩虹礼盒 +8分</b>，炸弹命中会有爆炸特效并打断节奏</p>
             <div class="controls" style="margin-top:12px"><button id="startBtn">开始冲刺</button></div>
           </div>
         </div>
@@ -197,6 +197,37 @@ function burstFireworks(count=24){
     setTimeout(()=>dot.remove(),2200);
   }
 }
+function bombExplosion(x, y){
+  const colors=['#fb7185','#f59e0b','#fde047','#ffffff'];
+  for(let i=0;i<26;i++){
+    const p=document.createElement('span');
+    p.style.position='absolute';
+    p.style.left=x+'px';
+    p.style.top=y+'px';
+    p.style.width=(8+Math.random()*10)+'px';
+    p.style.height=(8+Math.random()*10)+'px';
+    p.style.borderRadius='50%';
+    p.style.background=colors[Math.floor(Math.random()*colors.length)];
+    p.style.pointerEvents='none';
+    p.style.zIndex='7';
+    p.style.boxShadow=`0 0 12px ${p.style.background}`;
+    field.appendChild(p);
+    const dx=(Math.random()*180-90), dy=(Math.random()*-140);
+    p.animate([
+      {transform:'translate(-50%,-50%) scale(0.2)',opacity:1},
+      {transform:`translate(${dx}px, ${dy}px) scale(1.15)`,opacity:1,offset:0.35},
+      {transform:`translate(${dx*1.35}px, ${dy+80}px) scale(0.5)`,opacity:0}
+    ],{duration:720+Math.random()*320,easing:'cubic-bezier(.2,.8,.2,1)'});
+    setTimeout(()=>p.remove(),1200);
+  }
+  field.animate([
+    {transform:'translateX(0px)'},
+    {transform:'translateX(-8px)'},
+    {transform:'translateX(8px)'},
+    {transform:'translateX(-5px)'},
+    {transform:'translateX(0px)'}
+  ],{duration:280,easing:'ease-out'});
+}
 makeConfetti();
 setTimeout(()=>burstFireworks(26),450);
 
@@ -224,10 +255,10 @@ function resetGame(){ document.querySelectorAll('.item').forEach(e=>e.remove());
 function spawnItem(){
   if(!running) return;
   const items=[
-    {emoji:'🍰', points:2, bonus:2, good:true},
-    {emoji:'⭐', points:1, bonus:2, good:true},
-    {emoji:'🎈', points:2, bonus:2, good:true},
-    {emoji:'🎁', points:8, bonus:4, good:true},
+    {emoji:'🍰', points:2, bonus:0, good:true},
+    {emoji:'⭐', points:1, bonus:0, good:true},
+    {emoji:'🎈', points:2, bonus:0, good:true},
+    {emoji:'🎁', points:8, bonus:0, good:true},
     {emoji:'💣', points:0, bonus:0, good:false}
   ];
   const roll=Math.random();
@@ -250,13 +281,13 @@ function spawnItem(){
         if(combo >= 3) gained += 1;
         if(combo >= 6) gained += 2;
         score += gained;
-        timeLeft += Number(el.dataset.bonus || 2);
         showCombo();
         if(score > best){ best=score; localStorage.setItem('annie-bday-best', best); }
         if(score >= 30 && !celebrated){ celebrated=true; burstFireworks(90); setTimeout(()=>burstFireworks(70),400); setTimeout(()=>burstFireworks(55),1000); }
       } else {
         combo = 0;
-        timeLeft = Math.max(0, timeLeft - 4);
+        const fr = field.getBoundingClientRect();
+        bombExplosion(ir.left - fr.left + ir.width/2, ir.top - fr.top + ir.height/2);
       }
       updateHUD(); el.remove(); return;
     }
